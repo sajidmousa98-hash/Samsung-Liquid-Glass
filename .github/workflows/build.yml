@@ -1,0 +1,56 @@
+name: Build Samsung Liquid Glass (Alpha)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'SamsungLiquidGlass-PhoneBuild-Alpha.zip'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract source archive
+        run: |
+          test -f SamsungLiquidGlass-PhoneBuild-Alpha.zip
+          unzip -q SamsungLiquidGlass-PhoneBuild-Alpha.zip
+          test -f SamsungLiquidGlass-PhoneBuild/app/build.gradle
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build APK and package KernelSU ZIP
+        working-directory: SamsungLiquidGlass-PhoneBuild
+        run: |
+          gradle --no-daemon --stacktrace :app:assembleDebug
+          python3 tools/package_ksu.py
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: SamsungLiquidGlass-Alpha
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            SamsungLiquidGlass-PhoneBuild/app/build/outputs/apk/debug/app-debug.apk
+            SamsungLiquidGlass-PhoneBuild/SamsungLiquidGlass-KernelSU-Alpha.zip
